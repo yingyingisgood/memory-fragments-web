@@ -346,6 +346,7 @@
     if (!record || record.removing) return;
     record.removing = true;
     if (record.timer) clearTimeout(record.timer);
+    if (record.loadGuard) clearTimeout(record.loadGuard);
     record.shell.animate([
       { opacity: Number(getComputedStyle(record.shell).opacity) || .9, filter: 'blur(0px)' },
       { opacity: 0, filter: 'blur(4px)' }
@@ -368,6 +369,10 @@
   }
 
   function animateFragment(record, behaviour, lifetime, monumental) {
+    if (record.loadGuard) {
+      clearTimeout(record.loadGuard);
+      record.loadGuard = null;
+    }
     const el = record.el;
     const shell = record.shell;
     const startScale = monumental ? rand(1.03, 1.10) : rand(.96, 1.04);
@@ -414,7 +419,7 @@
           <span class="memory-decay">DECAY ${decay.toFixed(1)}%</span>
         </div>
         <div class="fragment-media">
-          <video autoplay muted loop playsinline preload="metadata"></video>
+          <video muted loop playsinline preload="auto"></video>
           <i class="corner tl"></i><i class="corner tr"></i><i class="corner br"></i><i class="corner bl"></i>
           <i class="scanline"></i>
         </div>
@@ -447,11 +452,15 @@
 
     const shell = el.querySelector('.fragment-shell');
     const video = el.querySelector('video');
-    video.src = src;
-    video.addEventListener('loadedmetadata', () => {
-      if (Number.isFinite(video.duration) && video.duration > 1) video.currentTime = rand(0, Math.max(.1, video.duration - .5));
-      video.play().catch(() => {});
-    }, { once: true });
+
+    // GitHub Pages / network-safe fragment playback:
+    // append first, request the file, wait until the first frame is available,
+    // then start the visual lifetime. This avoids showing a black fragment while
+    // the browser is still fetching or seeking the MP4 over HTTP.
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
 
     fragmentsLayer.appendChild(el);
 
@@ -461,10 +470,55 @@
     else if (category === 'aigc') lifetime = rand(6500, 10500);
     else lifetime = rand(8000, 14500);
 
-    const record = { el, shell, video, category, behaviour, removing: false, timer: null };
+    const record = { el, shell, video, category, behaviour, removing: false, timer: null, started: false };
     active.push(record);
     updateStatus();
-    animateFragment(record, behaviour, lifetime, size.monumental);
+
+    const startFragment = () => {
+      if (record.removing || record.started) return;
+      record.started = true;
+      video.play().then(() => {
+        // Start the shrink / decay only after playback has actually begun.
+        animateFragment(record, behaviour, lifetime, size.monumental);
+      }).catch(() => {
+        // A muted video should normally autoplay after a pointer interaction,
+        // but if a browser still refuses it, keep the frame visible and retry
+        // briefly rather than leaving a permanent black rectangle.
+        setTimeout(() => {
+          if (record.removing) return;
+          video.play().then(() => {
+            animateFragment(record, behaviour, lifetime, size.monumental);
+          }).catch(() => fadeAndRemove(record, 450));
+        }, 250);
+      });
+    };
+
+    const failFragment = () => {
+      console.warn('Memory fragment failed to load:', src, video.error || 'unknown media error');
+      fadeAndRemove(record, 350);
+    };
+
+    video.addEventListener('error', failFragment, { once: true });
+    video.addEventListener('loadeddata', startFragment, { once: true });
+    video.addEventListener('canplay', startFragment, { once: true });
+
+    // Use the beginning of the clip for the first network frame. Random seeking
+    // immediately after metadata can trigger an additional HTTP range request and
+    // is a common cause of temporary black frames on static hosts.
+    video.src = src;
+    video.currentTime = 0;
+    video.load();
+
+    if (video.readyState >= 2) startFragment();
+
+    // If a slow connection never reaches loadeddata/canplay, remove the fragment
+    // cleanly instead of leaving a black box on screen indefinitely.
+    record.loadGuard = setTimeout(() => {
+      if (!record.started && !record.removing) {
+        console.warn('Memory fragment timed out while loading:', src);
+        fadeAndRemove(record, 350);
+      }
+    }, 10000);
   }
 
   stage.addEventListener('pointerdown', event => {

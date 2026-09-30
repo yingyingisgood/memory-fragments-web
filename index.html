@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <title>Memory Fragments — Interactive Archive</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="stage" aria-label="Memory Fragments interactive artwork">
+    <div class="background-stack" aria-hidden="true">
+      <video id="backgroundVideoA" class="background-video is-active" autoplay muted loop playsinline preload="auto"></video>
+      <video id="backgroundVideoB" class="background-video" autoplay muted loop playsinline preload="auto"></video>
+    </div>
+    <audio id="soundtrack" src="assets/background-music.mp3" preload="auto" loop></audio>
+    <div class="veil" aria-hidden="true"></div>
+    <div id="fragments" class="fragments" aria-hidden="true"></div>
+
+    <header class="archive-ui" aria-hidden="true">
+      <div class="archive-brand">
+        <span class="micro">ARCHIVE / 01</span>
+        <strong>MEMORY<br>FRAGMENTS</strong>
+      </div>
+
+      <div class="archive-title">
+        <h1>Memory Fragments</h1>
+        <p>( CLICK ANYWHERE TO RECALL )</p>
+      </div>
+
+      <div class="archive-status">
+        <span class="micro">LOCAL TIME</span>
+        <strong id="localTime">00:00:00</strong>
+        <span id="sceneStatus">BASE MEMORY --</span>
+        <span id="audioStatus">AUDIO / CLICK TO START</span>
+        <span id="memoryStatus">ACTIVE FRAGMENTS 00</span>
+      </div>
+    </header>
+
+    <footer class="archive-footer" aria-hidden="true">
+      <div><span>01.</span> C4D — SPATIAL MEMORY</div>
+      <div><span>02.</span> TD — FRAGMENT / INTERRUPTION</div>
+      <div><span>03.</span> AIGC — SYNTHETIC RECALL</div>
+      <div class="footer-right">MEMORY IS NON-LINEAR / TEMPORARY / UNSTABLE</div>
+    </footer>
+
+    <div id="startHint" class="start-hint">CLICK / RECALL / LAYER / DECAY</div>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
